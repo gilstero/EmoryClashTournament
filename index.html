@@ -104,74 +104,85 @@
   </section>
 </div>
   
-<script defer src="https://esm.sh/@supabase/supabase-js@2"></script>
 <script type="module">
-window.addEventListener("DOMContentLoaded", async () => {
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  // === SAFE CONFIG (read-only) ===
+  // === SAFE CONFIG ===
   const SUPABASE_URL = "https://xlxqdotveahulypkrxgq.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhseHFkb3R2ZWFodWx5cGtyeGdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3NTQ2OTQsImV4cCI6MjA3NTMzMDY5NH0.ju9D30ie4AJjboshKEMDkWFHqN-mGx_Eof_RGYBh1LI";
-  const { createClient } = window.supabase;
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ===== TABS =====
-  document.querySelectorAll('.tab').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      b.classList.add('active');
+  document.querySelectorAll(".tab").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+      b.classList.add("active");
       const tab = b.dataset.tab;
-      document.querySelectorAll('section').forEach(s=>s.classList.add('hide'));
-      document.getElementById(tab).classList.remove('hide');
+      document.querySelectorAll("section").forEach((s) => s.classList.add("hide"));
+      document.getElementById(tab).classList.remove("hide");
     });
   });
 
-  // ===== SIGNUP (uses secure serverless route) =====
-  const form = document.getElementById('signupForm');
-  form.addEventListener('submit', async (e)=>{
+  // ===== SIGNUP =====
+  const form = document.getElementById("signupForm");
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const first = document.getElementById('firstName').value.trim();
-    const last  = document.getElementById('lastName').value.trim();
-    const email = document.getElementById('email').value.trim().toLowerCase();
-    if(!email.endsWith('@emory.edu')) { alert('Please use your @emory.edu email'); return; }
+    const first = document.getElementById("firstName").value.trim();
+    const last = document.getElementById("lastName").value.trim();
+    const email = document.getElementById("email").value.trim().toLowerCase();
+    if (!email.endsWith("@emory.edu")) {
+      alert("Please use your @emory.edu email");
+      return;
+    }
 
     try {
-      const res = await fetch('/api/signup', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ first_name:first, last_name:last, emory_email:email })
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name: first, last_name: last, emory_email: email }),
       });
       const data = await res.json();
-      if(!res.ok){ alert('Error: '+data.error); return; }
-      alert('Signed up! Check the list below.');
+      if (!res.ok) {
+        alert("Error: " + data.error);
+        return;
+      }
+      alert("Signed up! Check the list below.");
       form.reset();
     } catch (err) {
-      alert('Network error: ' + err.message);
+      alert("Network error: " + err.message);
     }
   });
 
   // ===== LIST + REALTIME =====
-  const list = document.getElementById('list');
-  const count = document.getElementById('count');
+  const list = document.getElementById("list");
+  const count = document.getElementById("count");
 
-  async function refreshList(){
+  async function refreshList() {
     const { data, error } = await sb
-      .from('participants')
-      .select('*')
-      .order('paid', { ascending:true })
-      .order('created_at', { ascending:true });
-    if(error){ console.error(error); return; }
+      .from("participants")
+      .select("*")
+      .order("paid", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error(error);
+      return;
+    }
     render(data);
   }
 
-  function render(rows){
-    list.innerHTML = '';
+  function render(rows) {
+    list.innerHTML = "";
     const now = new Date();
-    const keep = rows.filter(r => r.paid || (now - new Date(r.created_at)) < 24*60*60*1000);
-    count.textContent = `${keep.length} participant${keep.length===1?'':'s'}`;
-    keep.forEach(r=>{
-      const row = document.createElement('div');
-      row.className = 'row';
-      const statusDot = `<span class="pill"><span class="dot ${r.paid?'green':'red'}"></span>${r.paid?'Paid':'Unpaid'}</span>`;
+    const keep = rows.filter(
+      (r) => r.paid || now - new Date(r.created_at) < 24 * 60 * 60 * 1000
+    );
+    count.textContent = `${keep.length} participant${keep.length === 1 ? "" : "s"}`;
+    keep.forEach((r) => {
+      const row = document.createElement("div");
+      row.className = "row";
+      const statusDot = `<span class="pill"><span class="dot ${
+        r.paid ? "green" : "red"
+      }"></span>${r.paid ? "Paid" : "Unpaid"}</span>`;
       row.innerHTML = `
         <div>${escapeHtml(r.first_name)}</div>
         <div>${escapeHtml(r.last_name)}</div>
@@ -183,17 +194,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  sb.channel('realtime:participants')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, refreshList)
+  sb
+    .channel("realtime:participants")
+    .on("postgres_changes", { event: "*", schema: "public", table: "participants" }, refreshList)
     .subscribe();
 
   await refreshList();
 
-  function escapeHtml(s){ 
-    return (s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); 
+  function escapeHtml(s) {
+    return (s ?? "").replace(
+      /[&<>"']/g,
+      (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m])
+    );
   }
-
-}); // DOMContentLoaded end
 </script>
 
 </body>
