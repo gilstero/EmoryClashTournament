@@ -175,39 +175,55 @@
   function render(rows) {
     list.innerHTML = "";
     const now = new Date();
+    const myEmail = localStorage.getItem("myEmail");
     const keep = rows.filter(
       (r) => r.paid || now - new Date(r.created_at) < 24 * 60 * 60 * 1000
     );
+  
     count.textContent = `${keep.length} participant${keep.length === 1 ? "" : "s"}`;
+  
     keep.forEach((r) => {
       const row = document.createElement("div");
       row.className = "row";
-      const statusDot = `<span class="pill"><span class="dot ${
-        r.paid ? "green" : "red"
-      }"></span>${r.paid ? "Paid" : "Unpaid"}</span>`;
+  
+      const statusDot = `
+        <span class="pill">
+          <span class="dot ${r.paid ? "green" : "red"}"></span>
+          ${r.paid ? "Paid" : "Unpaid"}
+        </span>
+      `;
+  
+      // withdraw button if this is the current user
+      let actions = "";
+      if (r.emory_email === myEmail) {
+        actions = `<button class="ghost small" data-email="${r.emory_email}">Withdraw</button>`;
+      }
+  
       row.innerHTML = `
         <div>${escapeHtml(r.first_name)}</div>
         <div>${escapeHtml(r.last_name)}</div>
-        <div class="muted">${escapeHtml(r.emory_email)}</div>
-        <div>${statusDot}</div>
-        <div class="right muted">—</div>
+        <div>${statusDot} ${actions}</div>
       `;
       list.appendChild(row);
     });
-  }
-
-  sb
-    .channel("realtime:participants")
-    .on("postgres_changes", { event: "*", schema: "public", table: "participants" }, refreshList)
-    .subscribe();
-
-  await refreshList();
-
-  function escapeHtml(s) {
-    return (s ?? "").replace(
-      /[&<>"']/g,
-      (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m])
-    );
+  
+    // attach withdraw listeners
+    list.querySelectorAll("button[data-email]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const email = btn.dataset.email;
+        if (!confirm("Remove yourself from the tournament?")) return;
+        const res = await fetch(`/api/signup?email=${encodeURIComponent(email)}`, {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          localStorage.removeItem("myEmail");
+          alert("Removed from the tournament.");
+          await refreshList();
+        } else {
+          alert("Error removing entry.");
+        }
+      });
+    });
   }
 </script>
 
