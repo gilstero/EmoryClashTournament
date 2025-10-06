@@ -1,1 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clash Royale Tournament – Emory</title>
+  <script defer src="https://esm.sh/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --royal-blue:#1f58ad;--deep:#0b2b6b;--gold:#f6c34a;--stone:#24447f;
+      --ok:#2ecc71;--bad:#e74c3c;
+    }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      background:linear-gradient(180deg,var(--royal-blue),var(--deep));color:#fff;}
+    .shell{max-width:900px;margin:0 auto;padding:24px;}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{margin:0;font-size:clamp(22px,3vw,32px);letter-spacing:.5px}
+    nav{display:flex;gap:8px}
+    .tab{border:2px solid #fff3;border-radius:999px;padding:8px 14px;background:#fff1;color:#fff;cursor:pointer}
+    .tab.active{background:var(--gold);color:#222;border-color:transparent;font-weight:700}
+    .card{background:linear-gradient(180deg,var(--stone),#132a57);border:1px solid #ffffff22;border-radius:16px;
+      padding:18px;box-shadow:0 10px 24px #0005}
+    .grid{display:grid;gap:14px}
+    label{display:block;font-size:14px;margin:6px 0 4px 2px;opacity:.9}
+    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #ffffff30;
+      background:#ffffff10;color:#fff;outline:none}
+    button{border:none;border-radius:12px;padding:10px 14px;background:var(--gold);color:#222;cursor:pointer;font-weight:700}
+    button.ghost{background:#ffffff14;color:#fff}
+    .row{display:grid;grid-template-columns:1.2fr 1.2fr 1.6fr 80px 120px;gap:10px;align-items:center;
+      padding:10px;border-bottom:1px solid #ffffff1e}
+    .pill{display:inline-flex;align-items:center;gap:8px;background:#ffffff18;border:1px solid #ffffff24;
+      border-radius:999px;padding:4px 10px}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.green{background:var(--ok)} .dot.red{background:var(--bad)}
+    .muted{opacity:.8}
+    .right{margin-left:auto}
+    .footer{opacity:.7;font-size:12px;margin-top:14px}
+    .note{font-size:14px;opacity:.9}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <h1>Clash Royale Tournament @ Emory</h1>
+  </header>
+
+  <nav>
+    <button class="tab active" data-tab="how">How it works</button>
+    <button class="tab" data-tab="players">Players</button>
+    <button class="tab" data-tab="leaderboard">Leaderboard</button>
+  </nav>
+
+  <!-- TAB 1 -->
+  <section id="how" class="card" style="margin-top:12px">
+    <div class="grid">
+      <h2>How this works</h2>
+      <p class="note">
+        1) Sign up with your <b>first name</b>, <b>last name</b>, and <b>Emory email</b>.<br/>
+        2) Send the <b>$5 buy-in</b> to the organizer.<br/>
+        3) Once payment is confirmed, your status turns <b>green</b>.<br/>
+        4) If payment isn’t received within <b>24 hours</b>, your sign-up is removed automatically.
+      </p>
+      <p class="footer">This page updates live for everyone.</p>
+    </div>
+  </section>
+
+  <!-- TAB 2 -->
+  <section id="players" class="card hide" style="margin-top:12px">
+    <h2>Sign Up</h2>
+    <form id="signupForm" class="grid" autocomplete="on">
+      <div>
+        <label>First name</label>
+        <input id="firstName" required maxlength="40" />
+      </div>
+      <div>
+        <label>Last name</label>
+        <input id="lastName" required maxlength="40" />
+      </div>
+      <div>
+        <label>Emory email</label>
+        <input id="email" type="email" required placeholder="netid@emory.edu" />
+      </div>
+      <div class="right">
+        <label>&nbsp;</label>
+        <button type="submit">Join Tournament</button>
+      </div>
+    </form>
+
+    <div style="margin-top:24px">
+      <h2>Participants</h2>
+      <div class="muted" id="count"></div>
+    </div>
+    <div class="row muted" style="font-weight:700">
+      <div>First</div><div>Last</div><div>Email</div><div>Status</div><div class="right">Actions</div>
+    </div>
+    <div id="list"></div>
+    <p class="footer">Unpaid entries older than 24 hours are removed.</p>
+  </section>
+
+  <!-- TAB 3 -->
+  <section id="leaderboard" class="card hide" style="margin-top:12px">
+    <h2>Leaderboard (coming soon)</h2>
+    <p class="muted">We’ll enable this once the bracket starts.</p>
+  </section>
+</div>
+
+<script type="module">
+  // === SAFE CONFIG (read-only) ===
+  const SUPABASE_URL = "YOUR_SUPABASE_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+  const { createClient } = window.supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ===== TABS =====
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      b.classList.add('active');
+      const tab = b.dataset.tab;
+      document.querySelectorAll('section').forEach(s=>s.classList.add('hide'));
+      document.getElementById(tab).classList.remove('hide');
+    });
+  });
+
+  // ===== SIGNUP (now uses secure serverless route) =====
+  const form = document.getElementById('signupForm');
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const first = document.getElementById('firstName').value.trim();
+    const last  = document.getElementById('lastName').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    if(!email.endsWith('@emory.edu')) { alert('Please use your @emory.edu email'); return; }
+
+    const res = await fetch('/api/signup', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ first_name:first, last_name:last, emory_email:email })
+    });
+    const data = await res.json();
+    if(!res.ok){ alert('Error: '+data.error); return; }
+    alert('Signed up! Check the list below.');
+    form.reset();
+  });
+
+  // ===== LIST + REALTIME =====
+  const list = document.getElementById('list');
+  const count = document.getElementById('count');
+
+  async function refreshList(){
+    const { data, error } = await sb
+      .from('participants')
+      .select('*')
+      .order('paid', { ascending:true })
+      .order('created_at', { ascending:true });
+    if(error){ console.error(error); return; }
+    render(data);
+  }
+
+  function render(rows){
+    list.innerHTML = '';
+    const now = new Date();
+    const keep = rows.filter(r => r.paid || (now - new Date(r.created_at)) < 24*60*60*1000);
+    count.textContent = `${keep.length} participant${keep.length===1?'':'s'}`;
+
+    keep.forEach(r=>{
+      const row = document.createElement('div');
+      row.className = 'row';
+      const statusDot = `<span class="pill"><span class="dot ${r.paid?'green':'red'}"></span>${r.paid?'Paid':'Unpaid'}</span>`;
+      row.innerHTML = `
+        <div>${escapeHtml(r.first_name)}</div>
+        <div>${escapeHtml(r.last_name)}</div>
+        <div class="muted">${escapeHtml(r.emory_email)}</div>
+        <div>${statusDot}</div>
+        <div class="right muted">—</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  sb.channel('realtime:participants')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, refreshList)
+    .subscribe();
+
+  await refreshList();
+
+  function escapeHtml(s){ return (s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+</script>
+</body>
+</html>
 
