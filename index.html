@@ -106,10 +106,11 @@
 </div>
 
 <script type="module">
+window.addEventListener("DOMContentLoaded", async () => {
+
   // === SAFE CONFIG (read-only) ===
   const SUPABASE_URL = "YOUR_SUPABASE_URL";
   const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-
   const { createClient } = window.supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -124,7 +125,7 @@
     });
   });
 
-  // ===== SIGNUP (now uses secure serverless route) =====
+  // ===== SIGNUP (uses secure serverless route) =====
   const form = document.getElementById('signupForm');
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -133,15 +134,19 @@
     const email = document.getElementById('email').value.trim().toLowerCase();
     if(!email.endsWith('@emory.edu')) { alert('Please use your @emory.edu email'); return; }
 
-    const res = await fetch('/api/signup', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ first_name:first, last_name:last, emory_email:email })
-    });
-    const data = await res.json();
-    if(!res.ok){ alert('Error: '+data.error); return; }
-    alert('Signed up! Check the list below.');
-    form.reset();
+    try {
+      const res = await fetch('/api/signup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ first_name:first, last_name:last, emory_email:email })
+      });
+      const data = await res.json();
+      if(!res.ok){ alert('Error: '+data.error); return; }
+      alert('Signed up! Check the list below.');
+      form.reset();
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
   });
 
   // ===== LIST + REALTIME =====
@@ -163,7 +168,6 @@
     const now = new Date();
     const keep = rows.filter(r => r.paid || (now - new Date(r.created_at)) < 24*60*60*1000);
     count.textContent = `${keep.length} participant${keep.length===1?'':'s'}`;
-
     keep.forEach(r=>{
       const row = document.createElement('div');
       row.className = 'row';
@@ -185,8 +189,13 @@
 
   await refreshList();
 
-  function escapeHtml(s){ return (s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function escapeHtml(s){ 
+    return (s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); 
+  }
+
+}); // DOMContentLoaded end
 </script>
+
 </body>
 </html>
 
