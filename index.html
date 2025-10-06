@@ -160,7 +160,7 @@
   async function refreshList() {
     const { data, error } = await sb
       .from("participants")
-      .select("*")
+      .select("first_name", "last_name")
       .order("paid", { ascending: true })
       .order("created_at", { ascending: true });
     if (error) {
