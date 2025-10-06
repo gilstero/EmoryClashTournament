@@ -1,6 +1,10 @@
 {
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "api/**/*.js", "use": "@vercel/node" }
+  "functions": {
+    "api/signup.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    { "src": "/api/signup.js", "dest": "/api/signup.js" }
   ]
 }
